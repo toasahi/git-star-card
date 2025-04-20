@@ -1,4 +1,5 @@
-Github Startをつけたリポジトリの活動を確認
+### GithubのStartをつけたリポジトリの活動履歴を確認できる
+![スクリーンショット](./images/screenshot.png)
 
 ### 環境変数を設定
 ```sh
