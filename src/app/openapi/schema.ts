@@ -58,7 +58,23 @@ const repositorySchema = z
   })
   .openapi('Repository');
 
-// Schema for an array of repositories
+export const commitActivitySchema = z.object({
+  days: z.array(z.number()).openapi({ example: [0, 0, 0] }),
+  total: z.number().openapi({ example: 10 }),
+  week: z.number().openapi({ example: 1672444800 }),
+}).openapi('Activity');
+
+export const commitActivitiesSchema = z.array(commitActivitySchema).openapi('Activities');
+
 export const repositoriesSchema = z
   .array(repositorySchema)
   .openapi('Repositories');
+
+export const githubStatsSchema = z
+  .array(
+    z.object({
+      repository: repositorySchema,
+      commit_activity: commitActivitySchema,
+    })
+  )
+  .openapi('GitHubStats');
