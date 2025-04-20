@@ -13,15 +13,12 @@ export default async function Home() {
   // レスポンスをJSON形式に変換
   const repositories = await response.json() as ResponseType;
 
-
-  console.log(repositories);
-
   return (
     <main className="">
       {/* データを表示する場合 */}
-      {/* {repositories.map((repo) => (
+      {repositories.map((repo) => (
         <div key={repo.repository.id}>{repo.repository.name}</div>
-      ))} */}
+      ))}
     </main>
   );
 }

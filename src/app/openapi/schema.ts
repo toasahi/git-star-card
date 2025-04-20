@@ -74,7 +74,7 @@ export const githubStatsSchema = z
   .array(
     z.object({
       repository: repositorySchema,
-      commit_activity: commitActivitySchema,
+      commit_activity: commitActivitiesSchema,
     })
   )
   .openapi('GitHubStats');
