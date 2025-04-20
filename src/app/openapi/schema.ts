@@ -55,6 +55,7 @@ const repositorySchema = z
     forks_count: z.number().openapi({ example: 2838 }),
     open_issues_count: z.number().openapi({ example: 82 }),
     default_branch: z.string().openapi({ example: 'main' }),
+    topics: z.array(z.string()).openapi({ example: ['mcp', 'servers'] }),
   })
   .openapi('Repository');
 
@@ -74,7 +75,13 @@ export const githubStatsSchema = z
   .array(
     z.object({
       repository: repositorySchema,
-      commit_activity: commitActivitiesSchema,
+      activityData: z.array(z.number()).openapi({ example: [0, 0, 0] }),
     })
   )
   .openapi('GitHubStats');
+
+export const githubStatSchema = z.object({
+  repository: repositorySchema,
+  activityData: z.array(z.number()).openapi({ example: [0, 0, 0] }),
+})
+  .openapi('GitHubStat');

@@ -1,5 +1,5 @@
 import { createRoute } from '@hono/zod-openapi';
-import { repositoryParamSchema, repositoriesSchema } from './schema';
+import { repositoryParamSchema, githubStatsSchema } from './schema';
 
 // Define the route for fetching user repositories
 export const route = createRoute({
@@ -12,10 +12,10 @@ export const route = createRoute({
         200: {
             content: {
                 'application/json': {
-                    schema: repositoriesSchema,
+                    schema: githubStatsSchema,
                 },
             },
-            description: 'Retrieve the repositories of a user',
+            description: 'Retrieve the GitHub statistics of a user',
         },
         400: {
             description: 'Bad Request - Invalid username parameter',

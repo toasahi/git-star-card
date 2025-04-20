@@ -11,6 +11,7 @@ export const runtime = 'edge';
 const GITHUB_API_BASE_URL = 'https://api.github.com';
 const GITHUB_API_HEADERS = {
   Accept: 'application/vnd.github.v3+json',
+  Authorization: `Bearer ${process.env.GITHUB_PAT_TOKEN}`,
 };
 
 // Fetch with retry logic
@@ -82,9 +83,18 @@ const app = new OpenAPIHono(baseApp)
           console.warn(`Commit activity is empty or invalid for repository: ${repo.full_name}`);
           return null;
         }
+
+        const activityData = commitActivityResult.data
+          .slice(-12)
+          .map((week: { total: number }) => week.total)
+          .map((count: number, _ : number, array: number[]) => {
+            const max = Math.max(...array, 1);
+            return count / max;
+          });
+
         return {
           repository: repo,
-          commit_activity: commitActivityResult.data,
+          activityData: activityData
         };
       });
 

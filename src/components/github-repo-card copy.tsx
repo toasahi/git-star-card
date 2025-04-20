@@ -10,8 +10,6 @@ import { Separator } from "@/components/ui/separator"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { BookOpen, Code, ExternalLink, Eye, FileCode, GitFork, Github, History, Star, AlertCircle, Check } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { z } from "zod"
-import { githubStatSchema } from "@/app/openapi/schema"
 
 export type ThemeOption = {
   id: string
@@ -170,115 +168,123 @@ export type ManualRepoData = {
 }
 
 interface GitHubRepoCardProps {
-  githubStat: z.infer<typeof githubStatSchema>;
+  repoOwner?: string;
+  repoName?: string;
+  githubToken?: string;
+  manualMode?: boolean;
+  repoData?: ManualRepoData;
   themeId?: string;
 }
 
 export function GitHubRepoCard({ 
-  githubStat,
+  repoOwner, 
+  repoName, 
+  githubToken,
+  manualMode = false,
+  repoData,
   themeId = "github-light" 
 }: GitHubRepoCardProps) {
   const [copied, setCopied] = useState(false);
-  // const [loading, setLoading] = useState(!manualMode);
-  // const [error, setError] = useState<string | null>(null);
-  // const [repo, setRepo] = useState<ManualRepoData | null>(manualMode ? repoData || null : null);
-  // const [rateLimit, setRateLimit] = useState<{ remaining: number, limit: number } | null>(null);
+  const [loading, setLoading] = useState(!manualMode);
+  const [error, setError] = useState<string | null>(null);
+  const [repo, setRepo] = useState<ManualRepoData | null>(manualMode ? repoData || null : null);
+  const [rateLimit, setRateLimit] = useState<{ remaining: number, limit: number } | null>(null);
 
   const currentTheme = themes.find(theme => theme.id === themeId) || themes[0];
 
-  // const fetchRepoData = useCallback(async () => {
-  //   setLoading(true);
-  //   setError(null);
+  const fetchRepoData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
     
-  //   try {
-  //     const headers: HeadersInit = {};
-  //     if (githubToken) {
-  //       headers.Authorization = `token ${githubToken}`;
-  //     }
+    try {
+      const headers: HeadersInit = {};
+      if (githubToken) {
+        headers.Authorization = `token ${githubToken}`;
+      }
       
-  //     const repoResponse = await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}`, {
-  //       headers
-  //     });
+      const repoResponse = await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}`, {
+        headers
+      });
       
-  //     const rateLimitRemaining = repoResponse.headers.get('x-ratelimit-remaining');
-  //     const rateLimitLimit = repoResponse.headers.get('x-ratelimit-limit');
+      const rateLimitRemaining = repoResponse.headers.get('x-ratelimit-remaining');
+      const rateLimitLimit = repoResponse.headers.get('x-ratelimit-limit');
       
-  //     if (rateLimitRemaining && rateLimitLimit) {
-  //       setRateLimit({
-  //         remaining: parseInt(rateLimitRemaining, 10),
-  //         limit: parseInt(rateLimitLimit, 10)
-  //       });
-  //     }
+      if (rateLimitRemaining && rateLimitLimit) {
+        setRateLimit({
+          remaining: parseInt(rateLimitRemaining, 10),
+          limit: parseInt(rateLimitLimit, 10)
+        });
+      }
       
-  //     if (!repoResponse.ok) {
-  //       if (repoResponse.status === 403 && rateLimitRemaining === '0') {
-  //         throw new Error('GitHub API rate limit exceeded. Please provide a GitHub token.');
-  //       } else {
-  //         throw new Error(`Failed to fetch repository data: ${repoResponse.status}`);
-  //       }
-  //     }
+      if (!repoResponse.ok) {
+        if (repoResponse.status === 403 && rateLimitRemaining === '0') {
+          throw new Error('GitHub API rate limit exceeded. Please provide a GitHub token.');
+        } else {
+          throw new Error(`Failed to fetch repository data: ${repoResponse.status}`);
+        }
+      }
       
-  //     const repoData = await repoResponse.json();
+      const repoData = await repoResponse.json();
       
-  //     const commitsResponse = await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/stats/commit_activity`, {
-  //       headers
-  //     });
+      const commitsResponse = await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/stats/commit_activity`, {
+        headers
+      });
       
-  //     let activityData: number[] = [];
-  //     if (commitsResponse.ok) {
-  //       const commitsData = await commitsResponse.json();
-  //       activityData = commitsData
-  //         .slice(-12)
-  //         .map((week: { total: number }) => week.total)
-  //         .map((count: number, _ : number, array: number[]) => {
-  //           const max = Math.max(...array, 1);
-  //           return count / max;
-  //         });
-  //     }
+      let activityData: number[] = [];
+      if (commitsResponse.ok) {
+        const commitsData = await commitsResponse.json();
+        activityData = commitsData
+          .slice(-12)
+          .map((week: { total: number }) => week.total)
+          .map((count: number, _ : number, array: number[]) => {
+            const max = Math.max(...array, 1);
+            return count / max;
+          });
+      }
       
-  //     const transformedRepo: ManualRepoData = {
-  //       name: repoData.name,
-  //       fullName: repoData.full_name,
-  //       description: repoData.description || "",
-  //       owner: {
-  //         login: repoData.owner.login,
-  //         avatarUrl: repoData.owner.avatar_url
-  //       },
-  //       stars: repoData.stargazers_count,
-  //       forks: repoData.forks_count,
-  //       watchers: repoData.watchers_count,
-  //       issues: repoData.open_issues_count,
-  //       language: repoData.language,
-  //       languageColor: repoData.language ? getLanguageColor(repoData.language) : undefined,
-  //       updatedAt: repoData.updated_at,
-  //       topics: repoData.topics || [],
-  //       activityData: activityData,
-  //       isPrivate: repoData.private
-  //     };
+      const transformedRepo: ManualRepoData = {
+        name: repoData.name,
+        fullName: repoData.full_name,
+        description: repoData.description || "",
+        owner: {
+          login: repoData.owner.login,
+          avatarUrl: repoData.owner.avatar_url
+        },
+        stars: repoData.stargazers_count,
+        forks: repoData.forks_count,
+        watchers: repoData.watchers_count,
+        issues: repoData.open_issues_count,
+        language: repoData.language,
+        languageColor: repoData.language ? getLanguageColor(repoData.language) : undefined,
+        updatedAt: repoData.updated_at,
+        topics: repoData.topics || [],
+        activityData: activityData,
+        isPrivate: repoData.private
+      };
       
-  //     setRepo(transformedRepo);
-  //     setLoading(false);
-  //   } catch (err) {
-  //     setError(err instanceof Error ? err.message : 'An unknown error occurred');
-  //     setLoading(false);
-  //   }
-  // }, [repoOwner, repoName, githubToken]);
+      setRepo(transformedRepo);
+      setLoading(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An unknown error occurred');
+      setLoading(false);
+    }
+  }, [repoOwner, repoName, githubToken]);
 
-  // useEffect(() => {
-  //   if (manualMode && repoData) {
-  //     setRepo(repoData);
-  //     setLoading(false);
-  //     return;
-  //   }
+  useEffect(() => {
+    if (manualMode && repoData) {
+      setRepo(repoData);
+      setLoading(false);
+      return;
+    }
 
-  //   if (!manualMode && repoOwner && repoName) {
-  //     fetchRepoData();
-  //   }
-  // }, [manualMode, repoData, repoOwner, repoName, fetchRepoData]);
+    if (!manualMode && repoOwner && repoName) {
+      fetchRepoData();
+    }
+  }, [manualMode, repoData, repoOwner, repoName, fetchRepoData]);
 
   const copyToClipboard = () => {
-    if (typeof navigator !== 'undefined' && githubStat) {
-      navigator.clipboard.writeText(`git clone https://github.com/${githubStat.repository.full_name}.git`)
+    if (typeof navigator !== 'undefined' && repo) {
+      navigator.clipboard.writeText(`git clone https://github.com/${repo.fullName}.git`)
         .then(() => {
           setCopied(true);
           setTimeout(() => setCopied(false), 2000);
@@ -308,6 +314,55 @@ export function GitHubRepoCard({
     return `${Math.floor(diffInSeconds / 31536000)} years ago`;
   }
 
+  if (loading) {
+    return (
+      <Card className={cn(
+        "w-full max-w-md overflow-hidden transition-all duration-300",
+        currentTheme.cardBg,
+        currentTheme.cardBorder
+      )}>
+        <CardContent className="flex h-40 items-center justify-center">
+          <div className="flex flex-col items-center gap-2">
+            <div className="h-6 w-6 animate-spin rounded-full border-2 border-current border-t-transparent" />
+            <p className={cn("text-sm font-medium", currentTheme.textMuted)}>Loading repository...</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card className={cn(
+        "w-full max-w-md overflow-hidden transition-all duration-300",
+        currentTheme.cardBg,
+        currentTheme.cardBorder
+      )}>
+        <CardContent className="flex h-40 items-center justify-center">
+          <div className="flex flex-col items-center gap-2">
+            <AlertCircle className="h-8 w-8 text-red-500" />
+            <p className={cn("text-center text-sm font-medium", currentTheme.textMuted)}>
+              Failed to load repository data.<br />
+              {error}
+            </p>
+            {error.includes('rate limit') && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className={cn("mt-2", currentTheme.textNormal)}
+                onClick={() => setError(null)}
+              >
+                Use manual mode instead
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!repo) return null;
+
   return (
     <TooltipProvider>
       <Card
@@ -322,18 +377,18 @@ export function GitHubRepoCard({
           <div className="flex items-center gap-2">
             <Github className={cn("h-5 w-5", currentTheme.textMuted)} />
             <div className="flex items-center text-sm">
-                <Link href={`https://github.com/${githubStat.repository.owner.login}`} className={cn("hover:underline font-medium", currentTheme.textMuted)}>
-                    {githubStat.repository.owner.login}
+                <Link href={`https://github.com/${repo.owner.login}`} className={cn("hover:underline font-medium", currentTheme.textMuted)}>
+                    {repo.owner.login}
                 </Link>
                 <span className={cn("mx-1", currentTheme.textMuted)}>/</span>
                 <Link
-                    href={`https://github.com/${githubStat.repository.full_name}`}
+                    href={`https://github.com/${repo.fullName}`}
                     className={cn("font-medium hover:underline", currentTheme.textMuted)}
                 >
-                    {githubStat.repository.name}
+                    {repo.name}
                 </Link>
                 </div>
-            {/* {rateLimit && (
+            {rateLimit && (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div className={cn("ml-auto text-xs font-medium", currentTheme.textMuted)}>
@@ -344,20 +399,20 @@ export function GitHubRepoCard({
                   <p>GitHub API requests remaining</p>
                 </TooltipContent>
               </Tooltip>
-            )} */}
+            )}
           </div>
           <div className="flex items-center gap-2">
             <Avatar className="h-6 w-6">
-              <AvatarImage src={githubStat.repository.owner.avatar_url} alt={githubStat.repository.owner.login} />
-              <AvatarFallback>{githubStat.repository.owner.login.substring(0, 2).toUpperCase()}</AvatarFallback>
+              <AvatarImage src={repo.owner.avatarUrl} alt={repo.owner.login} />
+              <AvatarFallback>{repo.owner.login.substring(0, 2).toUpperCase()}</AvatarFallback>
             </Avatar>
-            <CardTitle className={cn("text-lg font-semibold", currentTheme.textNormal)}>{githubStat.repository.name}</CardTitle>
+            <CardTitle className={cn("text-lg font-semibold", currentTheme.textNormal)}>{repo.name}</CardTitle>
             <Badge variant="outline" className={cn("ml-auto font-medium", currentTheme.badgeBg, currentTheme.badgeText)}>
-              {githubStat.repository.private ? "Private" : "Public"}
+              {repo.isPrivate ? "Private" : "Public"}
             </Badge>
           </div>
           <CardDescription className={cn("line-clamp-2 h-10 text-sm font-medium", currentTheme.textMuted)}>
-            {githubStat.repository.description || "No description provided"}
+            {repo.description || "No description provided"}
           </CardDescription>
         </CardHeader>
         <CardContent className="pb-2">
@@ -368,14 +423,14 @@ export function GitHubRepoCard({
                 <History className="h-3 w-3" />
                 Activity
               </span>
-              <span className={cn("font-medium", currentTheme.textMuted)}>Updated {formatRelativeTime(githubStat.repository.updated_at)}</span>
+              <span className={cn("font-medium", currentTheme.textMuted)}>Updated {formatRelativeTime(repo.updatedAt)}</span>
             </div>
             <div className="h-[40px] w-full overflow-hidden rounded-md bg-muted/50 dark:bg-gray-800/50 p-1">
-              {githubStat.activityData && githubStat.activityData.length > 0 ? (
+              {repo.activityData && repo.activityData.length > 0 ? (
                 <svg className="h-full w-full" viewBox="0 0 100 20" preserveAspectRatio="none">
                   <polyline
-                    points={githubStat.activityData
-                      .map((value: number, index: number) => `${index * (100 / (githubStat.activityData?.length || 1))},${20 - value * 20}`)
+                    points={repo.activityData
+                      .map((value: number, index: number) => `${index * (100 / (repo.activityData?.length || 1))},${20 - value * 20}`)
                       .join(" ")}
                     fill="none"
                     stroke="currentColor"
@@ -383,7 +438,7 @@ export function GitHubRepoCard({
                     className={currentTheme.graphColor}
                   />
                   <path
-                    d={`M0,20 ${githubStat.activityData?.map((value: number, index: number) => `L${index * (100 / (githubStat.activityData?.length || 1))},${20 - value * 20}`).join(" ")} L100,20 Z`}
+                    d={`M0,20 ${repo.activityData?.map((value: number, index: number) => `L${index * (100 / (repo.activityData?.length || 1))},${20 - value * 20}`).join(" ")} L100,20 Z`}
                     fill="currentColor"
                     className={currentTheme.graphBgColor}
                   />
@@ -401,11 +456,11 @@ export function GitHubRepoCard({
               <TooltipTrigger asChild>
                 <div className={cn("flex items-center gap-1 font-medium", currentTheme.textMuted)}>
                   <Star className="h-4 w-4" />
-                  <span>{githubStat.repository.stargazers_count.toLocaleString()}</span>
+                  <span>{repo.stars.toLocaleString()}</span>
                 </div>
               </TooltipTrigger>
               <TooltipContent className={cn("text-black dark:text-white dark:bg-gray-800")}>
-                <p>{githubStat.repository.stargazers_count.toLocaleString()} stars</p>
+                <p>{repo.stars.toLocaleString()} stars</p>
               </TooltipContent>
             </Tooltip>
 
@@ -413,11 +468,11 @@ export function GitHubRepoCard({
               <TooltipTrigger asChild>
                 <div className={cn("flex items-center gap-1 font-medium", currentTheme.textMuted)}>
                   <GitFork className="h-4 w-4" />
-                  <span>{githubStat.repository.forks_count.toLocaleString()}</span>
+                  <span>{repo.forks.toLocaleString()}</span>
                 </div>
               </TooltipTrigger>
               <TooltipContent className={cn("text-black dark:text-white dark:bg-gray-800")}>
-                <p>{githubStat.repository.forks_count.toLocaleString()} forks</p>
+                <p>{repo.forks.toLocaleString()} forks</p>
               </TooltipContent>
             </Tooltip>
 
@@ -425,11 +480,11 @@ export function GitHubRepoCard({
               <TooltipTrigger asChild>
                 <div className={cn("flex items-center gap-1 font-medium", currentTheme.textMuted)}>
                   <Eye className="h-4 w-4" />
-                  <span>{githubStat.repository.watchers_count.toLocaleString()}</span>
+                  <span>{repo.watchers.toLocaleString()}</span>
                 </div>
               </TooltipTrigger>
               <TooltipContent className={cn("text-black dark:text-white dark:bg-gray-800")}>
-                <p>{githubStat.repository.watchers_count.toLocaleString()} watchers</p>
+                <p>{repo.watchers.toLocaleString()} watchers</p>
               </TooltipContent>
             </Tooltip>
 
@@ -437,30 +492,31 @@ export function GitHubRepoCard({
               <TooltipTrigger asChild>
                 <div className={cn("flex items-center gap-1 font-medium", currentTheme.textMuted)}>
                   <BookOpen className="h-4 w-4" />
-                  <span>{githubStat.repository.open_issues_count.toLocaleString()}</span>
+                  <span>{repo.issues.toLocaleString()}</span>
                 </div>
               </TooltipTrigger>
               <TooltipContent className={cn("text-black dark:text-white dark:bg-gray-800")}>
-                <p>{githubStat.repository.open_issues_count.toLocaleString()} issues</p>
+                <p>{repo.issues.toLocaleString()} issues</p>
               </TooltipContent>
             </Tooltip>
           </div>
 
           <div className="mt-4">
-            {githubStat.repository.language && (
+            {repo.language && (
               <div className="mb-2 flex items-center gap-2">
                 <div className="flex items-center gap-1.5">
                   <div 
                     className="h-3 w-3 rounded-full" 
-                    style={{ backgroundColor: githubStat.repository.language || getLanguageColor(githubStat.repository.language) }} 
+                    style={{ backgroundColor: repo.languageColor || getLanguageColor(repo.language) }} 
                   />
-                  <span className={cn("text-sm font-medium", currentTheme.textNormal)}>{githubStat.repository.language}</span>
+                  <span className={cn("text-sm font-medium", currentTheme.textNormal)}>{repo.language}</span>
                 </div>
               </div>
             )}
-            {githubStat.repository.topics && githubStat.repository.topics.length > 0 && (
+
+            {repo.topics && repo.topics.length > 0 && (
               <div className="flex flex-wrap gap-1">
-                {githubStat.repository.topics.slice(0, 3).map((topic: string) => (
+                {repo.topics.slice(0, 3).map((topic: string) => (
                   <Badge
                     key={topic}
                     variant="secondary"
@@ -469,9 +525,9 @@ export function GitHubRepoCard({
                     {topic}
                   </Badge>
                 ))}
-                {githubStat.repository.topics.length > 3 && (
+                {repo.topics.length > 3 && (
                   <Badge variant="outline" className={cn("text-xs font-medium", currentTheme.badgeText)}>
-                    +{githubStat.repository.topics.length - 3} more
+                    +{repo.topics.length - 3} more
                   </Badge>
                 )}
               </div>
@@ -506,7 +562,7 @@ export function GitHubRepoCard({
               className={cn("h-8 w-8 p-0", currentTheme.textNormal, "hover:bg-gray-100 dark:hover:bg-gray-800")} 
               asChild
             >
-              <Link href={`https://github.com/${githubStat.repository.full_name}`} target="_blank">
+              <Link href={`https://github.com/${repo.fullName}`} target="_blank">
                 <span className="sr-only">View on GitHub</span>
                 <ExternalLink className="h-4 w-4" />
               </Link>
@@ -517,7 +573,7 @@ export function GitHubRepoCard({
               className={cn("h-8 w-8 p-0", currentTheme.textNormal, "hover:bg-gray-100 dark:hover:bg-gray-800")} 
               asChild
             >
-              <Link href={`https://github.com/${githubStat.repository.full_name}/issues`} target="_blank">
+              <Link href={`https://github.com/${repo.fullName}/issues`} target="_blank">
                 <span className="sr-only">View Issues</span>
                 <BookOpen className="h-4 w-4" />
               </Link>
@@ -528,7 +584,7 @@ export function GitHubRepoCard({
               className={cn("h-8 w-8 p-0", currentTheme.textNormal, "hover:bg-gray-100 dark:hover:bg-gray-800")} 
               asChild
             >
-              <Link href={`https://github.com/${githubStat.repository.full_name}/blob/main/README.md`} target="_blank">
+              <Link href={`https://github.com/${repo.fullName}/blob/main/README.md`} target="_blank">
                 <span className="sr-only">View README</span>
                 <FileCode className="h-4 w-4" />
               </Link>

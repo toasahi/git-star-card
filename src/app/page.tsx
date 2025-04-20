@@ -1,13 +1,14 @@
 import { client } from "@/lib/hono";
 import { z } from "@hono/zod-openapi";
 import { githubStatsSchema } from "@/app/openapi/schema";
+import { GitHubRepoCard } from "@/components/github-repo-card";
 
 // 型をスキーマから推論
 type ResponseType = z.infer<typeof githubStatsSchema>;
 
 export default async function Home() {
   const response = await client.api.github.repos[":username"].$get({
-    param: { username: "toasahi" }
+    param: { username: process.env.USERNAME ?? "" }
   });
 
   // レスポンスをJSON形式に変換
@@ -15,10 +16,12 @@ export default async function Home() {
 
   return (
     <main className="">
-      {/* データを表示する場合 */}
+      <h1 className="text-2xl font-bold text-center mt-4">GitHub <span>⭐️</span> Repositories</h1>
+      <section className="grid grid-cols-3 gap-4 p-4">
       {repositories.map((repo) => (
-        <div key={repo.repository.id}>{repo.repository.name}</div>
+        <GitHubRepoCard githubStat={repo} key={repo.repository.id} /> 
       ))}
+      </section>
     </main>
   );
 }
